@@ -1,0 +1,16 @@
+{% set paymentmethods = gateway.retrieveAvailablePaymentMethods %}
+
+<ul class="commerce-maksuturva">
+  {% for paymentmethod in paymentmethods.paymentmethod %}
+    <li class="commerce-maksuturva__payment-method">
+      <label class="maksuturva-payment-method">
+        <img class="maksuturva-payment-method__image" src="{{ paymentmethod.imageurl }}">
+        <p class="maksuturva-payment-method__name">{{ paymentmethod.displayname }}</p>
+        {% if paymentmethod.extrapaymentmethodfee is defined %}
+          + € {{ paymentmethod.extrapaymentmethodfee }}
+        {% endif %}
+        <input class="maksuturva-payment-method__input" type="radio" name="paymentMethod" value="{{ paymentmethod.code }}">
+      </label>
+    </li>
+  {% endfor %}
+</ul>

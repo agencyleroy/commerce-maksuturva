@@ -1,0 +1,27 @@
+{% from "_includes/forms" import textField, lightswitchField %}
+
+{{ textField({
+    label: 'Seller ID'|t,
+    instructions: 'Your Maksuturva seller ID'|t,
+    id: 'sellerid',
+    class: 'ltr',
+    name: 'sellerid',
+    value: gateway.sellerid,
+}) }}
+
+{{ textField({
+    label: 'Secret Key'|t,
+    instructions: 'Your Maksuturva secret key'|t,
+    id: 'secretkey',
+    class: 'ltr',
+    name: 'secretkey',
+    value: gateway.secretkey,
+}) }}
+
+{{ lightswitchField({
+    label: 'Enable testmode'|t,
+    name: 'testmode',
+    on: gateway.testmode,
+    errors: gateway.getErrors('testmode'),
+    instructions: 'Use Maksuturvas test environment instead of production'|t,
+}) }}

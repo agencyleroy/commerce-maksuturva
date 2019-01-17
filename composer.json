@@ -1,0 +1,25 @@
+{
+  "name": "agencyleroy/commerce-maksuturva",
+  "version": "1.0.0",
+  "type": "craft-plugin",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Marcus Aschan",
+      "email": "marcusaschan@gmail.com"
+    }
+  ],
+  "require": {
+    "craftcms/cms": "^3.0.0",
+    "craftcms/commerce": "^2.0.0-alpha.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "craft\\commerce\\maksuturva\\": "src/"
+    }
+  },
+  "extra": {
+    "name": "Maksuturva for Craft Commerce",
+    "handle": "commerce-maksuturva"
+  }
+}
