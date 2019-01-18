@@ -58,6 +58,7 @@ class PaymentRequest extends Model
         $rules = parent::rules();
         $rules[] = [['pmt_buyeremail', 'pmt_buyername', 'pmt_buyeraddress', 'pmt_buyerpostalcode', 'pmt_buyercity'], 'required'];
         $rules[] = [['pmt_deliveryname', 'pmt_deliveryaddress', 'pmt_deliverypostalcode', 'pmt_deliverycity'], 'required'];
+        $rules[] = ['pmt_userlocale', 'filter', 'filter' => [$this, 'filterUserLocale']];
 
         return $rules;
     }
@@ -80,6 +81,24 @@ class PaymentRequest extends Model
         }
 
         return $values;
+    }
+
+    /**
+     * Filter pmt_userlocale
+     * Return a default launguage string if value is not among allowed languages
+     *
+     * @param string $value
+     * @return string $value
+     */
+    public function filterUserLocale($value)
+    {
+        $allowed = ['fi_FI', 'sv_FI', 'en_FI'];
+
+        if (in_array($value, $allowed)) {
+            return $value;
+        }
+
+        return 'en_FI';
     }
 
     /**
@@ -194,13 +213,11 @@ class PaymentRequest extends Model
      */
     private function populatelineItem(LineItem $lineItem)
     {
-        $product = $lineItem->snapshot['product'];
-
         $row = [
             'pmt_row_name' => $lineItem->description,
-            'pmt_row_desc' => $product['description'] ? $product['description'] : ' ',
+            'pmt_row_desc' => $lineItem->description,
             'pmt_row_quantity' => $lineItem->qty,
-            'pmt_row_deliverydate' => $product['days']->one()->startDate->format('d.m.Y'),
+            'pmt_row_deliverydate' => date('d.m.Y'),
             'pmt_row_price_net' => number_format($lineItem->price, 2, ',', ''),
             'pmt_row_vat' => $this->getLineItemTax($lineItem),
             'pmt_row_discountpercentage' => '0,00',
