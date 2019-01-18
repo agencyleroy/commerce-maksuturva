@@ -128,14 +128,10 @@ class PaymentRequest extends Model
      */
     private function populateFromOrder(Order $order)
     {
-        // pmt_amount should be the total price excluding the shipping costs,
-        // shipping costs, if existing, are placed in pmt_sellercosts.
-        $amount = $order->getTotalPrice() - $order->getAdjustmentsTotalByType('shipping');
-
         $this->pmt_orderid = $order->id;
         $this->pmt_buyeremail = $order->email;
         $this->pmt_currency = $order->currency;
-        $this->pmt_amount = number_format($amount, 2, ',', '');
+        $this->pmt_amount = number_format($order->getItemTotal(), 2, ',', '');
         $this->generateId();
         $this->generateReference();
         $this->populateBuyer($order->getBillingAddress());
@@ -218,9 +214,9 @@ class PaymentRequest extends Model
             'pmt_row_desc' => $lineItem->description,
             'pmt_row_quantity' => $lineItem->qty,
             'pmt_row_deliverydate' => date('d.m.Y'),
-            'pmt_row_price_net' => number_format($lineItem->price, 2, ',', ''),
+            'pmt_row_price_net' => number_format($lineItem->getSubTotal(), 2, ',', ''),
             'pmt_row_vat' => $this->getLineItemTax($lineItem),
-            'pmt_row_discountpercentage' => '0,00',
+            'pmt_row_discountpercentage' => $this->getLineItemDiscountPercentage($lineItem),
             'pmt_row_type' => 1,
         ];
         // Increase row count
@@ -363,5 +359,19 @@ class PaymentRequest extends Model
         }
         $percent = $totalrate * 100;
         return number_format($percent, 2, ',', '');
+    }
+
+    /**
+     * Helper function for getting a LineItems discount percentage.
+     *
+     * @param craft\commerce\models\LineItem $lineItem
+     */
+    private function getLineItemDiscountPercentage(LineItem $lineItem)
+    {
+        $discount = abs($lineItem->getAdjustmentsTotalByType('discount'));
+        $total = $lineItem->getSubTotal();
+        $percentage = round(($discount / $total) * 100);
+
+        return number_format($percentage, 2, ',', '');
     }
 }
