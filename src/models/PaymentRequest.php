@@ -131,14 +131,14 @@ class PaymentRequest extends Model
         $this->pmt_orderid = $order->id;
         $this->pmt_buyeremail = $order->email;
         $this->pmt_currency = $order->currency;
-        $this->pmt_amount = number_format($order->getItemTotal(), 2, ',', '');
+        $this->pmt_amount = $this->getOrderAmount($order);
         $this->generateId();
         $this->generateReference();
         $this->populateBuyer($order->getBillingAddress());
         $this->populateDelivery($order->getShippingAddress());
         $this->populateMisc();
         $this->populatelineItems($order->lineItems);
-        $this->populateDiscount($order->getAdjustmentsTotalByType('discount'));
+        $this->populateDiscount($order->getAdjustmentsTotalByType('discount')); // This should be a discount code applied
         $this->populateShipping($order->getAdjustmentsTotalByType('shipping'));
     }
 
@@ -214,9 +214,9 @@ class PaymentRequest extends Model
             'pmt_row_desc' => $lineItem->description,
             'pmt_row_quantity' => $lineItem->qty,
             'pmt_row_deliverydate' => date('d.m.Y'),
-            'pmt_row_price_net' => number_format($lineItem->getSubTotal(), 2, ',', ''),
+            'pmt_row_price_net' => number_format($lineItem->price, 2, ',', ''),
             'pmt_row_vat' => $this->getLineItemTax($lineItem),
-            'pmt_row_discountpercentage' => $this->getLineItemDiscountPercentage($lineItem),
+            'pmt_row_discountpercentage' => $this->getLineItemSalePercentage($lineItem),
             'pmt_row_type' => 1,
         ];
         // Increase row count
@@ -351,13 +351,17 @@ class PaymentRequest extends Model
      */
     private function getLineItemTax(LineItem $lineItem)
     {
-        $taxrates = $lineItem->getTaxCategory()->getTaxRates();
-        $totalrate = 0;
-        foreach ($taxrates as $taxrate) {
-            $rate = $taxrate->rate;
-            $totalrate = floatval($totalrate) + floatval($rate);
-        }
-        $percent = $totalrate * 100;
+        // Calculate tax, can't use real tax when discounts are applied
+        $percent = ($lineItem->getAdjustmentsTotalByType('tax') / $lineItem->getSubtotal()) * 100;
+
+        // $taxrates = $lineItem->getTaxCategory()->getTaxRates();
+        // $totalrate = 0;
+        // foreach ($taxrates as $taxrate) {
+        //     $rate = $taxrate->rate;
+        //     $totalrate = floatval($totalrate) + floatval($rate);
+        // }
+        // $percent = $totalrate * 100;
+
         return number_format($percent, 2, ',', '');
     }
 
@@ -366,12 +370,28 @@ class PaymentRequest extends Model
      *
      * @param craft\commerce\models\LineItem $lineItem
      */
-    private function getLineItemDiscountPercentage(LineItem $lineItem)
+    private function getLineItemSalePercentage(LineItem $lineItem)
     {
-        $discount = abs($lineItem->getAdjustmentsTotalByType('discount'));
-        $total = $lineItem->getSubTotal();
-        $percentage = round(($discount / $total) * 100);
+        $percentage = abs($lineItem->saleAmount) / $lineItem->price * 100;
 
         return number_format($percentage, 2, ',', '');
+    }
+
+    /**
+     * Helper function for getting the total amount of the order excluding
+     * shipping costs and discount.
+     *
+     * @param craft\commerce\elements\Order $order
+     */
+    private function getOrderAmount(Order $order)
+    {
+        // Order total without adjusters
+        $amount = $order->getItemSubtotal();
+        // Order total with tax adjuster
+        $amount = $amount + $order->getAdjustmentsTotalByType('tax');
+        // Order total with discount adjuster
+        $amount = $amount + $order->getAdjustmentsTotalByType('discount');
+
+        return number_format($amount, 2, ',', '');
     }
 }
