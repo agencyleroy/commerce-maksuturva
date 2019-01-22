@@ -235,9 +235,8 @@ class PaymentRequest extends Model
         $discount = $order->getAdjustmentsTotalByType('discount');
 
         if ($discount !== 0) {
-            $taxAmount = $order->getAdjustmentsTotalByType('tax');
-            $taxablePrice = $order->getTotalTaxablePrice();
-            $taxPercent = round(($taxAmount / ($taxablePrice - $taxAmount)) * 100);
+
+            $taxPercent = $this->getDiscountTaxPercentage($order);
 
             $this->_lineItems[] = [
                 'pmt_row_name' => Craft::t('commerce-maksuturva', 'Discount'),
@@ -264,21 +263,23 @@ class PaymentRequest extends Model
         $shipping = $order->getAdjustmentsTotalByType('shipping');
 
         if ($shipping !== 0) {
+
+            $taxPercent = $this->getShippingTaxPercentage($order);
+
             $this->_lineItems[] = [
                 'pmt_row_name' => Craft::t('commerce-maksuturva', 'Shipping costs'),
                 'pmt_row_desc' => Craft::t('commerce-maksuturva', 'Shipping costs'),
                 'pmt_row_quantity' => 1,
                 'pmt_row_deliverydate' => date('d.m.Y'),
                 'pmt_row_price_net' => number_format($shipping, 2, ',', ''),
-                // Need to figure out how to calculate tax on shipping
-                'pmt_row_vat' => '0,00',
+                'pmt_row_vat' => number_format($taxPercent, 2, ',', ''),
                 'pmt_row_discountpercentage' => '0,00',
                 'pmt_row_type' => 2,
             ];
             // Increase row count
             $this->pmt_rows++;
-            // Set seller costs
-            $this->pmt_sellercosts = number_format($shipping, 2, ',', '');
+            // Set seller costs, shipping + tax
+            $this->pmt_sellercosts = number_format($shipping + ($shipping * (0.01 * $taxPercent)), 2, ',', '');
         }
     }
 
@@ -382,6 +383,44 @@ class PaymentRequest extends Model
     }
 
     /**
+     *
+     * @param craft\commerce\elements\Order $order
+     */
+    private function getDiscountTaxPercentage(Order $order)
+    {
+        $taxPercent = 0;
+
+        $shippingCosts = $order->getAdjustmentsTotalByType('shipping');
+        $shippingTaxPercentage = $this->getShippingTaxPercentage($order);
+        $shippingTaxAmount = $shippingCosts * $shippingTaxPercentage / 100;
+
+        $taxAmount = $order->getAdjustmentsTotalByType('tax') - $shippingTaxAmount;
+        $taxablePrice = $order->getTotalTaxablePrice();
+        $taxPercent = round(($taxAmount / ($taxablePrice - $taxAmount)) * 100);
+
+        return $taxPercent;
+    }
+
+    /**
+     *
+     * @param craft\commerce\elements\Order $order
+     */
+    private function getShippingTaxPercentage(Order $order)
+    {
+        $taxPercent = 0;
+        $adjustments = $order->getOrderAdjustments();
+        foreach ($adjustments as $adjustment) {
+            if ($adjustment->type == 'tax') {
+                $taxAmount = $adjustment->amount;
+                $taxablePrice = $order->getTotalTaxablePrice();
+                $taxPercent = round(($taxAmount / $taxablePrice) * 100);
+            }
+        }
+
+        return $taxPercent;
+    }
+
+    /**
      * Helper function for getting the total amount of the order excluding
      * shipping costs and discount.
      *
@@ -395,6 +434,13 @@ class PaymentRequest extends Model
         $amount = $amount + $order->getAdjustmentsTotalByType('tax');
         // Order total with discount adjuster
         $amount = $amount + $order->getAdjustmentsTotalByType('discount');
+
+        // Calulate the shipping tax portion of the whole tax
+        $shippingCosts = $order->getAdjustmentsTotalByType('shipping');
+        $shippingTaxPercentage = $this->getShippingTaxPercentage($order);
+        $shippingTaxAmount = $shippingCosts * $shippingTaxPercentage / 100;
+        // Remove shipping tax from the final amount
+        $amount = $amount - $shippingTaxAmount;
 
         return number_format($amount, 2, ',', '');
     }
