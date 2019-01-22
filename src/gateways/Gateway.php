@@ -39,22 +39,12 @@ class Gateway extends BaseGateway
     /**
      * @var string
      */
-    protected $productionPaymentPath = 'https://www.maksuturva.fi/NewPaymentExtended.pmt';
+    protected $productionUrl = 'https://www.maksuturva.fi/';
 
     /**
      * @var string
      */
-    protected $testPaymentPath = 'https://test1.maksuturva.fi/NewPaymentExtended.pmt';
-
-    /**
-     * @var string
-     */
-    protected $productionPaymentMethodsPath = 'https://test1.maksuturva.fi/GetPaymentMethods.pmt';
-
-    /**
-     * @var string
-     */
-    protected $testPaymentMethodsPath = 'https://test1.maksuturva.fi/GetPaymentMethods.pmt';
+    protected $testUrl = 'https://test1.maksuturva.fi/';
 
     /**
      * @inheritdoc
@@ -197,10 +187,11 @@ class Gateway extends BaseGateway
      */
     public function purchase(Transaction $transaction, BasePaymentForm $form): RequestResponseInterface
     {
+        // Build a payment request
         $paymentRequest = new PaymentRequest($transaction, $form);
         $paymentRequest->validate();
 
-        $url = $this->testmode ? $this->testPaymentPath : $this->productionPaymentPath;
+        $url = $this->getUrl('NewPaymentExtended.pmt');
 
         $response = new Maksuturva($paymentRequest->attributes);
 
@@ -303,11 +294,11 @@ class Gateway extends BaseGateway
     }
 
     /**
-     *
+     * Retrive available payment methods
      */
     public function retrieveAvailablePaymentMethods()
     {
-        $url = $this->testmode ? $this->testPaymentMethodsPath : $this->productionPaymentMethodsPath;
+        $url = $this->getUrl('GetPaymentMethods.pmt');
 
         $post_data['sellerid'] = $this->sellerid;
 
@@ -323,6 +314,19 @@ class Gateway extends BaseGateway
         $json = json_encode($xml);
 
         return json_decode($json, true);
+    }
+
+    /**
+     * Get url based on testmode setting
+     *
+     * @param string $path
+     * @return
+     */
+    private function getUrl(string $path)
+    {
+        $url = $this->testmode ? $this->testUrl : $this->productionUrl;
+
+        return UrlHelper::url($url . $path);
     }
 
 }
