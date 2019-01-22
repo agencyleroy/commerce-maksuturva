@@ -138,8 +138,8 @@ class PaymentRequest extends Model
         $this->populateDelivery($order->getShippingAddress());
         $this->populateMisc();
         $this->populatelineItems($order->lineItems);
-        $this->populateDiscount($order->getAdjustmentsTotalByType('discount')); // This should be a discount code applied
-        $this->populateShipping($order->getAdjustmentsTotalByType('shipping'));
+        $this->populateDiscount($order);
+        $this->populateShipping($order);
     }
 
     /**
@@ -228,19 +228,24 @@ class PaymentRequest extends Model
     /**
      * Add discount to lineitems
      *
-     * @param int $int The discount to be added
+     * @param craft\commerce\elements\Order $order
      */
-    private function populateDiscount(int $int)
+    private function populateDiscount(Order $order)
     {
-        if ($int !== 0) {
+        $discount = $order->getAdjustmentsTotalByType('discount');
+
+        if ($discount !== 0) {
+            $taxAmount = $order->getAdjustmentsTotalByType('tax');
+            $taxablePrice = $order->getTotalTaxablePrice();
+            $taxPercent = round(($taxAmount / ($taxablePrice - $taxAmount)) * 100);
+
             $this->_lineItems[] = [
                 'pmt_row_name' => Craft::t('commerce-maksuturva', 'Discount'),
                 'pmt_row_desc' => Craft::t('commerce-maksuturva', 'Discount'),
                 'pmt_row_quantity' => 1,
                 'pmt_row_deliverydate' => date('d.m.Y'),
-                'pmt_row_price_net' => number_format($int, 2, ',', ''),
-                // Need to figure out how to calculate tax on shipping
-                'pmt_row_vat' => '0,00',
+                'pmt_row_price_net' => number_format($discount, 2, ',', ''),
+                'pmt_row_vat' => number_format($taxPercent, 2, ',', ''),
                 'pmt_row_discountpercentage' => '0,00',
                 'pmt_row_type' => 6,
             ];
@@ -252,17 +257,19 @@ class PaymentRequest extends Model
     /**
      * Add shipping costs to lineitems
      *
-     * @param int $int The shipping cost to be added
+     * @param craft\commerce\elements\Order $order
      */
-    private function populateShipping(int $int)
+    private function populateShipping(Order $order)
     {
-        if ($int !== 0) {
+        $shipping = $order->getAdjustmentsTotalByType('shipping');
+
+        if ($shipping !== 0) {
             $this->_lineItems[] = [
                 'pmt_row_name' => Craft::t('commerce-maksuturva', 'Shipping costs'),
                 'pmt_row_desc' => Craft::t('commerce-maksuturva', 'Shipping costs'),
                 'pmt_row_quantity' => 1,
                 'pmt_row_deliverydate' => date('d.m.Y'),
-                'pmt_row_price_net' => number_format($int, 2, ',', ''),
+                'pmt_row_price_net' => number_format($shipping, 2, ',', ''),
                 // Need to figure out how to calculate tax on shipping
                 'pmt_row_vat' => '0,00',
                 'pmt_row_discountpercentage' => '0,00',
@@ -271,7 +278,7 @@ class PaymentRequest extends Model
             // Increase row count
             $this->pmt_rows++;
             // Set seller costs
-            $this->pmt_sellercosts = number_format($int, 2, ',', '');
+            $this->pmt_sellercosts = number_format($shipping, 2, ',', '');
         }
     }
 
@@ -351,16 +358,13 @@ class PaymentRequest extends Model
      */
     private function getLineItemTax(LineItem $lineItem)
     {
-        // Calculate tax, can't use real tax when discounts are applied
-        $percent = ($lineItem->getAdjustmentsTotalByType('tax') / $lineItem->getSubtotal()) * 100;
-
-        // $taxrates = $lineItem->getTaxCategory()->getTaxRates();
-        // $totalrate = 0;
-        // foreach ($taxrates as $taxrate) {
-        //     $rate = $taxrate->rate;
-        //     $totalrate = floatval($totalrate) + floatval($rate);
-        // }
-        // $percent = $totalrate * 100;
+        $taxrates = $lineItem->getTaxCategory()->getTaxRates();
+        $totalrate = 0;
+        foreach ($taxrates as $taxrate) {
+            $rate = $taxrate->rate;
+            $totalrate = floatval($totalrate) + floatval($rate);
+        }
+        $percent = $totalrate * 100;
 
         return number_format($percent, 2, ',', '');
     }
