@@ -2,14 +2,16 @@
 
 <ul class="commerce-maksuturva">
   {% for paymentmethod in paymentmethods.paymentmethod %}
-    <li class="commerce-maksuturva__payment-method">
+    <li class="commerce-maksuturva__payment-method" data-method="{{ paymentmethod.code }}">
       <label class="maksuturva-payment-method">
         <input class="maksuturva-payment-method__input" type="radio" name="paymentMethod" value="{{ paymentmethod.code }}">
         <div class="maksuturva-payment-method__method">
-          <img class="maksuturva-payment-method__image" src="{{ paymentmethod.imageurl }}">
+          <div class="maksuturva-payment-method__image">
+            <img src="{{ paymentmethod.imageurl }}">
+          </div>
           <p class="maksuturva-payment-method__name">{{ paymentmethod.displayname }}</p>
           {% if paymentmethod.extrapaymentmethodfee is defined %}
-            + € {{ paymentmethod.extrapaymentmethodfee }}
+            <p class="maksuturva-payment-method__disclaimer">+ € {{ paymentmethod.extrapaymentmethodfee }}</p>
           {% endif %}
         </div>
       </label>
