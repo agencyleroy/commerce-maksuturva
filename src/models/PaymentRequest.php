@@ -151,6 +151,8 @@ class PaymentRequest extends Model
     {
         $this->pmt_okreturn = UrlHelper::url('actions/commerce/payments/complete-payment', ['commerceTransactionHash' => $transaction->hash]);
         $this->pmt_errorreturn = UrlHelper::url('actions/commerce-maksuturva/payments/error-return', ['commerceTransactionHash' => $transaction->hash]);
+        $this->pmt_cancelreturn = UrlHelper::siteUrl($transaction->getOrder()->cancelUrl);
+        $this->pmt_delayedpayreturn = UrlHelper::siteUrl($transaction->getOrder()->cancelUrl);
     }
 
     /**
@@ -160,8 +162,6 @@ class PaymentRequest extends Model
     {
         $this->pmt_userlocale = str_replace('-', '_', Craft::$app->language);
         $this->pmt_duedate = date('d.m.Y');
-        $this->pmt_cancelreturn = UrlHelper::url('shop/checkout');
-        $this->pmt_delayedpayreturn = UrlHelper::url('shop/checkout');
     }
 
     /**
@@ -430,6 +430,7 @@ class PaymentRequest extends Model
     {
         // Order total without adjusters
         $amount = $order->getItemSubtotal();
+
         // Order total with tax adjuster
         $amount = $amount + $order->getAdjustmentsTotalByType('tax');
         // Order total with discount adjuster
